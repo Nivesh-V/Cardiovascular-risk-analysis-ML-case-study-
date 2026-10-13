@@ -1,4 +1,4 @@
-import numpy as np, pandas as pd, streamlit as st
+import io, numpy as np, pandas as pd, streamlit as st
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -8,6 +8,15 @@ st.set_page_config(page_title="Cardio ML Studio", page_icon="🫀", layout="wide
 BLUE, ORANGE, GREY = "#2a6fbb", "#d9822b", "#8a8f98"
 plt.rcParams.update({"axes.spines.top": False, "axes.spines.right": False, "axes.grid": True,
                      "grid.alpha": .25, "figure.dpi": 110, "axes.titlesize": 11, "axes.titleweight": "bold"})
+
+
+def render_chart(fig, container, dpi=140):
+    """Renders a chart with completely fixed canvas dimensions to prevent resizing."""
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=dpi, facecolor="white", edgecolor="none")
+    buf.seek(0)
+    container.image(buf, use_container_width=True)
+    plt.close(fig)
 
 
 @st.cache_data
@@ -56,7 +65,8 @@ if page.startswith("📊"):
         bin_edges = np.linspace(lo_, hi_, 41)
 
         c1, c2 = st.columns(2)
-        fig1, ax1 = plt.subplots(figsize=(6, 3.6))
+        fig1, ax1 = plt.subplots(figsize=(6, 3.8))
+        fig1.subplots_adjust(left=0.15, right=0.95, top=0.88, bottom=0.18)
         for v, lab, colr in [(0, "No CVD", BLUE), (1, "CVD", ORANGE)]:
             sub = d.loc[d.cardio == v, col].clip(lo_, hi_)
             if len(sub) > 0:
@@ -66,11 +76,10 @@ if page.startswith("📊"):
         ax1.set_ylabel("Patients")
         ax1.set_title(f"{col} by cardiovascular status (outer 1% clipped)")
         ax1.legend(frameon=False)
-        fig1.tight_layout()
-        c1.pyplot(fig1, use_container_width=True)
-        plt.close(fig1)
+        render_chart(fig1, c1)
 
-        fig2, ax2 = plt.subplots(figsize=(6, 3.6))
+        fig2, ax2 = plt.subplots(figsize=(6, 3.8))
+        fig2.subplots_adjust(left=0.15, right=0.95, top=0.88, bottom=0.18)
         vc = d.cardio.value_counts().sort_index()
         cats = ["No CVD", "CVD"]
         vals = [int(vc.get(0, 0)), int(vc.get(1, 0))]
@@ -82,9 +91,7 @@ if page.startswith("📊"):
         ax2.set_ylabel("Patients")
         ax2.set_title("Target balance (cardio)")
         ax2.grid(axis="x", visible=False)
-        fig2.tight_layout()
-        c2.pyplot(fig2, use_container_width=True)
-        plt.close(fig2)
+        render_chart(fig2, c2)
     with t2:
         feats = ["cholesterol", "gluc", "smoke", "alco", "active", "gender"]
         fig, axes = plt.subplots(2, 3, figsize=(11, 5.5)); 
@@ -98,21 +105,24 @@ if page.startswith("📊"):
     with t3:
         c1, c2 = st.columns(2)
         num = d[["age_years", "bmi", "ap_hi", "ap_lo", "cholesterol", "gluc", "smoke", "alco", "active", "cardio"]].corr()
-        fig, ax = plt.subplots(figsize=(6, 5))
+        fig, ax = plt.subplots(figsize=(6, 4.8))
+        fig.subplots_adjust(left=0.18, right=0.92, top=0.90, bottom=0.20)
         im = ax.imshow(num, cmap="coolwarm", vmin=-1, vmax=1); ax.grid(False)
         ax.set_xticks(range(len(num))); ax.set_xticklabels(num.columns, rotation=60, ha="right", fontsize=8)
         ax.set_yticks(range(len(num))); ax.set_yticklabels(num.columns, fontsize=8)
         for i in range(len(num)):
             for j in range(len(num)): ax.text(j, i, f"{num.iloc[i, j]:.1f}", ha="center", va="center", fontsize=6)
         ax.set_title("Correlation heatmap"); fig.colorbar(im, shrink=.8)
-        c1.pyplot(fig); plt.close(fig)
+        render_chart(fig, c1)
+
         s = d[(d.ap_hi.between(60, 240)) & (d.ap_lo.between(40, 160))].sample(min(4000, len(d)), random_state=1)
-        fig, ax = plt.subplots(figsize=(6, 5))
+        fig, ax = plt.subplots(figsize=(6, 4.8))
+        fig.subplots_adjust(left=0.18, right=0.92, top=0.90, bottom=0.20)
         for v, lab, colr in [(0, "No CVD", BLUE), (1, "CVD", ORANGE)]:
             q = s[s.cardio == v]; ax.scatter(q.ap_lo, q.ap_hi, s=6, alpha=.35, color=colr, label=lab)
         ax.set_xlabel("ap_lo (diastolic)"); ax.set_ylabel("ap_hi (systolic)"); ax.legend(frameon=False, markerscale=2)
         ax.set_title("Blood pressure vs disease status (sample)")
-        c2.pyplot(fig); plt.close(fig)
+        render_chart(fig, c2)
     with t4:
         st.dataframe(d[["age_years", "height", "weight", "bmi", "ap_hi", "ap_lo", "cholesterol", "gluc", "smoke", "alco", "active", "cardio"]].describe().T.round(2), use_container_width=True)
         st.dataframe(d.drop(columns=["gender_label"]).head(200), use_container_width=True)
