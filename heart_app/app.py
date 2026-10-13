@@ -49,20 +49,42 @@ if page.startswith("📊"):
 
     t1, t2, t3, t4 = st.tabs(["Distributions", "Risk factors", "Relationships", "Summary table"])
     with t1:
+        c_sel, _ = st.columns([1, 1])
+        col = c_sel.selectbox("Numeric feature", ["age_years", "bmi", "height", "weight", "ap_hi", "ap_lo"])
+
+        lo_, hi_ = float(df[col].quantile(0.005)), float(df[col].quantile(0.995))
+        bin_edges = np.linspace(lo_, hi_, 41)
+
         c1, c2 = st.columns(2)
-        col = c1.selectbox("Numeric feature", ["age_years", "bmi", "height", "weight", "ap_hi", "ap_lo"])
-        lo_, hi_ = d[col].quantile([.005, .995])
-        fig, ax = plt.subplots(figsize=(6, 3.6))
+        fig1, ax1 = plt.subplots(figsize=(6, 3.6))
         for v, lab, colr in [(0, "No CVD", BLUE), (1, "CVD", ORANGE)]:
-            ax.hist(d.loc[d.cardio == v, col].clip(lo_, hi_), bins=40, alpha=.6, label=lab, color=colr)
-        ax.set_title(f"{col} by cardiovascular status (outer 1% clipped for display)"); ax.legend(frameon=False)
-        c1.pyplot(fig); plt.close(fig)
-        fig, ax = plt.subplots(figsize=(6, 3.6))
+            sub = d.loc[d.cardio == v, col].clip(lo_, hi_)
+            if len(sub) > 0:
+                ax1.hist(sub, bins=bin_edges, alpha=0.6, label=lab, color=colr)
+        ax1.set_xlim(lo_, hi_)
+        ax1.set_xlabel(col)
+        ax1.set_ylabel("Patients")
+        ax1.set_title(f"{col} by cardiovascular status (outer 1% clipped)")
+        ax1.legend(frameon=False)
+        fig1.tight_layout()
+        c1.pyplot(fig1, use_container_width=True)
+        plt.close(fig1)
+
+        fig2, ax2 = plt.subplots(figsize=(6, 3.6))
         vc = d.cardio.value_counts().sort_index()
-        ax.bar(["No CVD", "CVD"], vc.values, color=[BLUE, ORANGE], width=.5)
-        for i, v in enumerate(vc.values): ax.text(i, v, f"{v:,}", ha="center", va="bottom")
-        ax.set_title("Target balance (cardio)"); ax.grid(axis="x", visible=False)
-        c2.pyplot(fig); plt.close(fig)
+        cats = ["No CVD", "CVD"]
+        vals = [int(vc.get(0, 0)), int(vc.get(1, 0))]
+        ax2.bar(cats, vals, color=[BLUE, ORANGE], width=0.5)
+        for i, v in enumerate(vals):
+            ax2.text(i, v, f"{v:,}", ha="center", va="bottom")
+        if max(vals) > 0:
+            ax2.set_ylim(0, max(vals) * 1.15)
+        ax2.set_ylabel("Patients")
+        ax2.set_title("Target balance (cardio)")
+        ax2.grid(axis="x", visible=False)
+        fig2.tight_layout()
+        c2.pyplot(fig2, use_container_width=True)
+        plt.close(fig2)
     with t2:
         feats = ["cholesterol", "gluc", "smoke", "alco", "active", "gender"]
         fig, axes = plt.subplots(2, 3, figsize=(11, 5.5)); 
