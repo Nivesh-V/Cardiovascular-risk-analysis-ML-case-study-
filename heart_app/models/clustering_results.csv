@@ -1,0 +1,3 @@
+Model,Parameters,Silhouette,Davies_Bouldin,Calinski_Harabasz
+Agglomerative Hierarchical,"k=3, linkage=average",0.30669638394320803,1.364139601204367,608.8706680024895
+K-Means,k=3,0.21464973118060907,1.866575491230398,849.9172794342364
